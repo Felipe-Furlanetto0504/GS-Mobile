@@ -13,17 +13,21 @@ export default function Routes() {
   const [telaInicial, SetTelaInicial] = useState(null);
 
   useEffect(() => {
-    async function verificar() {
-      try {
-        await AsyncStorage.clear();
+  async function verificar() {
+    try {
+      await AsyncStorage.clear();
+      setTimeout(() => {
         SetTelaInicial("Cadastro");
-      } catch (error) {
-        console.log("Erro:", error);
+      }, 2000);
+    } catch (error) {
+      console.log("Erro:", error);
+      setTimeout(() => {
         SetTelaInicial("Cadastro");
-      }
+      }, 2000);
     }
-    verificar();
-  }, []);
+  }
+  verificar();
+}, []);
 
   if (!telaInicial) {
     return (
