@@ -51,8 +51,8 @@ export default function Perfil() {
         <View style={styles.separador} />
 
         <View style={styles.item}>
-          <Text style={styles.itemLabel}>E-MAIL</Text>
-          <Text style={styles.itemValor}>{dados.email}</Text>
+          <Text style={styles.itemLabel}>CPF</Text>
+          <Text style={styles.itemValor}>{dados.cpf}</Text>
         </View>
 
         <View style={styles.separador} />
@@ -83,7 +83,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 2,
   },
-
   header: {
     paddingTop: 64,
     paddingBottom: 32,
@@ -100,7 +99,6 @@ const styles = StyleSheet.create({
     color: "#F0EDE6",
     letterSpacing: 6,
   },
-
   avatarWrapper: {
     alignItems: "center",
     marginBottom: 40,
@@ -132,7 +130,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
-
   card: {
     backgroundColor: "#242424",
     borderRadius: 12,

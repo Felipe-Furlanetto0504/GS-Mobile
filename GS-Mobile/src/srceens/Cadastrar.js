@@ -1,17 +1,22 @@
 import { useState } from "react";
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,KeyboardAvoidingView,Platform,StatusBar,} from "react-native";
+import {View, Text, TextInput, TouchableOpacity, StyleSheet,Alert, ScrollView, KeyboardAvoidingView, Platform, StatusBar,} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaskedTextInput } from "react-native-mask-text";
 
 export default function Cadastrar({ navigation }) {
   const [nome, SetNome] = useState("");
   const [senha, SetSenha] = useState("");
-  const [email, SetEmail] = useState("");
+  const [cpf, SetCpf] = useState("");
   const [nomeFazenda, SetNomeFazenda] = useState("");
   const [mostrarSenha, SetMostrarSenha] = useState(false);
 
   async function salvar() {
-    if (!nome || !senha || !email || !nomeFazenda) {
+    if (!nome || !senha || !cpf || !nomeFazenda) {
       Alert.alert("Erro", "Preencha todos os campos.");
+      return;
+    }
+    if (cpf.replace(/\D/g, "").length < 11) {
+      Alert.alert("Erro", "CPF inválido.");
       return;
     }
     if (senha.length < 6) {
@@ -19,7 +24,7 @@ export default function Cadastrar({ navigation }) {
       return;
     }
     try {
-      const dados = { nome, senha, email, nomeFazenda };
+      const dados = { nome, senha, cpf, nomeFazenda };
       await AsyncStorage.setItem("usuarioLogado", JSON.stringify(dados));
       await AsyncStorage.setItem("INFORMACOES", JSON.stringify(dados));
       Alert.alert("Sucesso", "Cadastro realizado com sucesso!", [
@@ -67,15 +72,15 @@ export default function Cadastrar({ navigation }) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>E-MAIL</Text>
-              <TextInput
+              <Text style={styles.label}>CPF</Text>
+              <MaskedTextInput
+                mask="999.999.999-99"
                 style={styles.input}
-                placeholder="Digite seu e-mail"
+                placeholder="000.000.000-00"
                 placeholderTextColor="#666"
-                value={email}
-                onChangeText={SetEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                value={cpf}
+                onChangeText={(text) => SetCpf(text)}
+                keyboardType="numeric"
               />
             </View>
 

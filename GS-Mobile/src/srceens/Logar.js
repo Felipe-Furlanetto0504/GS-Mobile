@@ -1,15 +1,19 @@
 import { useState } from "react";
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,KeyboardAvoidingView,Platform,StatusBar,} from "react-native";
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  Alert, ScrollView, KeyboardAvoidingView, Platform, StatusBar,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaskedTextInput } from "react-native-mask-text";
 
 export default function Login({ navigation }) {
-  const [email, SetEmail] = useState("");
+  const [cpf, SetCpf] = useState("");
   const [nomeFazenda, SetNomeFazenda] = useState("");
   const [senha, SetSenha] = useState("");
   const [mostrarSenha, SetMostrarSenha] = useState(false);
 
   async function logar() {
-    if (!email || !nomeFazenda || !senha) {
+    if (!cpf || !nomeFazenda || !senha) {
       Alert.alert("Erro", "Preencha todos os campos");
       return;
     }
@@ -19,11 +23,11 @@ export default function Login({ navigation }) {
       return;
     }
     const obj = JSON.parse(dados);
-    if (obj.email === email && obj.senha === senha) {
+    if (obj.cpf === cpf && obj.senha === senha) {
       await AsyncStorage.setItem("Logado", "true");
       navigation.reset({ index: 0, routes: [{ name: "App" }] });
     } else {
-      Alert.alert("Erro", "Email ou senha incorretos");
+      Alert.alert("Erro", "CPF ou senha incorretos");
     }
   }
 
@@ -47,15 +51,15 @@ export default function Login({ navigation }) {
 
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>E-MAIL</Text>
-              <TextInput
+              <Text style={styles.label}>CPF</Text>
+              <MaskedTextInput
+                mask="999.999.999-99"
                 style={styles.input}
-                placeholder="Digite seu e-mail"
+                placeholder="000.000.000-00"
                 placeholderTextColor="#666"
-                value={email}
-                onChangeText={SetEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
+                value={cpf}
+                onChangeText={(text) => SetCpf(text)}
+                keyboardType="numeric"
               />
             </View>
 

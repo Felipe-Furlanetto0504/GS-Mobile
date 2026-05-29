@@ -33,7 +33,7 @@ export default function Routes() {
     return (
       <View style={styles.container}>
         <View style={styles.divider} />
-        <Text style={styles.titulo}>CAMPO & GESTÃO</Text>
+        <Text style={styles.titulo}>AGRO-VISION</Text>
         <ActivityIndicator size="large" color="#C8A96E" style={styles.loader} />
         <Text style={styles.subtitulo}>Carregando...</Text>
       </View>
