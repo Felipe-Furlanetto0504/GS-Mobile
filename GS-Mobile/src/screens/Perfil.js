@@ -1,19 +1,38 @@
 import { useEffect, useState } from "react";
-import { Text, View, StyleSheet, StatusBar } from "react-native";
+import {
+  Text, View, StyleSheet, StatusBar,
+  TouchableOpacity, Alert,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export default function Perfil() {
-  const [dados, SetDados] = useState(null);
+export default function Perfil({ navigation }) {
+  const [dados,           setDados]           = useState(null);
+  const [totalPlantacoes, setTotalPlantacoes] = useState(0);
 
   useEffect(() => {
     async function carregar() {
       const dadosSalvos = await AsyncStorage.getItem("INFORMACOES");
-      if (dadosSalvos) {
-        SetDados(JSON.parse(dadosSalvos));
-      }
+      if (dadosSalvos) setDados(JSON.parse(dadosSalvos));
+
+      const plantacoes = await AsyncStorage.getItem("PLANTACOES");
+      if (plantacoes) setTotalPlantacoes(JSON.parse(plantacoes).length);
     }
     carregar();
   }, []);
+
+  async function sair() {
+    Alert.alert("Sair", "Deseja encerrar a sessão?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.clear();
+          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        },
+      },
+    ]);
+  }
 
   if (!dados) {
     return (
@@ -32,6 +51,7 @@ export default function Perfil() {
         <Text style={styles.titulo}>PERFIL</Text>
       </View>
 
+      {/* Avatar */}
       <View style={styles.avatarWrapper}>
         <View style={styles.avatar}>
           <Text style={styles.avatarLetra}>
@@ -42,26 +62,52 @@ export default function Perfil() {
         <Text style={styles.fazendaDestaque}>{dados.nomeFazenda}</Text>
       </View>
 
+      {/* Estatísticas */}
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValor}>{totalPlantacoes}</Text>
+          <Text style={styles.statLabel}>TALHÕES</Text>
+        </View>
+        <View style={styles.statDivisor} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValor}>3</Text>
+          <Text style={styles.statLabel}>ALERTAS</Text>
+        </View>
+        <View style={styles.statDivisor} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValor}>2</Text>
+          <Text style={styles.statLabel}>MISSÕES</Text>
+        </View>
+      </View>
+
+      {/* Dados do usuário */}
       <View style={styles.card}>
         <View style={styles.item}>
           <Text style={styles.itemLabel}>NOME COMPLETO</Text>
           <Text style={styles.itemValor}>{dados.nome}</Text>
         </View>
-
         <View style={styles.separador} />
-
+        <View style={styles.item}>
+          <Text style={styles.itemLabel}>E-MAIL</Text>
+          <Text style={styles.itemValor}>{dados.email ?? "—"}</Text>
+        </View>
+        <View style={styles.separador} />
         <View style={styles.item}>
           <Text style={styles.itemLabel}>CPF</Text>
           <Text style={styles.itemValor}>{dados.cpf}</Text>
         </View>
-
         <View style={styles.separador} />
-
         <View style={styles.item}>
           <Text style={styles.itemLabel}>NOME DA FAZENDA</Text>
           <Text style={styles.itemValor}>{dados.nomeFazenda}</Text>
         </View>
       </View>
+
+      {/* Botão sair */}
+      <TouchableOpacity style={styles.btnSair} onPress={sair} activeOpacity={0.85}>
+        <Text style={styles.btnSairTexto}>ENCERRAR SESSÃO</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
@@ -71,6 +117,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1A1A1A",
     paddingHorizontal: 28,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -85,7 +132,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 64,
-    paddingBottom: 32,
+    paddingBottom: 28,
   },
   dividerTop: {
     width: 40,
@@ -101,7 +148,7 @@ const styles = StyleSheet.create({
   },
   avatarWrapper: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 28,
   },
   avatar: {
     width: 88,
@@ -130,11 +177,38 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
+  statsRow: {
+    flexDirection: "row",
+    backgroundColor: "#242424",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValor: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#C8A96E",
+  },
+  statLabel: {
+    fontSize: 10,
+    color: "#666",
+    marginTop: 4,
+    letterSpacing: 1,
+  },
+  statDivisor: {
+    width: 1,
+    backgroundColor: "#2E2E2E",
+  },
   card: {
     backgroundColor: "#242424",
     borderRadius: 12,
     paddingHorizontal: 24,
     paddingVertical: 8,
+    marginBottom: 24,
   },
   item: {
     paddingVertical: 18,
@@ -154,5 +228,18 @@ const styles = StyleSheet.create({
   separador: {
     height: 1,
     backgroundColor: "#2E2E2E",
+  },
+  btnSair: {
+    borderWidth: 1.5,
+    borderColor: "#e74c3c",
+    borderRadius: 4,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  btnSairTexto: {
+    color: "#e74c3c",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 2,
   },
 });
