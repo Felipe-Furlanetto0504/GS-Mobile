@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import Cadastrar from "../srceens/Cadastrar";
+import Cadastrar from "../screens/Cadastrar";
 import Login from "../screens/Logar";
 import TabRoutes from "./tab.routes";
 
