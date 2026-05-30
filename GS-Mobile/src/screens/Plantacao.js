@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import {Text, View, TextInput, TouchableOpacity,FlatList, Alert, Modal, ScrollView, StyleSheet, StatusBar} from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Plantacao() {
+  const insets = useSafeAreaInsets();
   const [plantacoes, SetPlantacoes] = useState([]);
   const [modalVisivel, SetModalVisivel] = useState(false);
   const [cultura, SetCultura] = useState("");
@@ -127,7 +129,7 @@ export default function Plantacao() {
       )}
 
       <TouchableOpacity
-        style={styles.botaoAdicionar}
+        style={[styles.botaoAdicionar, { marginBottom: 64 + insets.bottom + 16 }]}
         onPress={() => SetModalVisivel(true)}
         activeOpacity={0.85}
       >

@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   StatusBar, RefreshControl, Alert,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
 
@@ -77,7 +78,15 @@ export default function Home({ navigation }) {
 
               <Text style={s.secaoLabel}>TALHÕES</Text>
               <View style={s.talhaoVazio}>
-                <Text style={s.talhaoVazioTexto}>Nenhum talhão cadastrado.</Text>
+                <Text style={s.talhaoVazioTexto}>Nenhuma plantação cadastrada.</Text>
+                <TouchableOpacity
+                  style={s.btnPlantacao}
+                  onPress={() => navigation.navigate('plantacao')}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="plus" size={14} color="#1A1A1A" />
+                  <Text style={s.btnPlantacaoTexto}>NOVA PLANTAÇÃO</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ) : (
@@ -194,11 +203,27 @@ const s = StyleSheet.create({
   talhaoVazio: {
     backgroundColor: Colors.fundo,
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
     alignItems: 'center',
+    gap: 12,
   },
   talhaoVazioTexto: {
     fontSize: 12,
     color: Colors.textoTercio,
+  },
+  btnPlantacao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primario,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 4,
+  },
+  btnPlantacaoTexto: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: 2,
   },
 });
