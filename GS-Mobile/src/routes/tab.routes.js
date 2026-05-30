@@ -1,10 +1,10 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
-import EstadoPlan from "../srceens/EstadoPlan";
-import Home from "../srceens/Home";
-import Perfil from "../srceens/Perfil";
-import Plantacao from "../srceens/Plantacao";
-import Sobre from "../srceens/Sobre";
+import EstadoPlan from "../screens/EstadoPlan";
+import Home from "../screens/Home";
+import Perfil from "../screens/Perfil";
+import Plantacao from "../screens/Plantacao";
+import Sobre from "../screens/Sobre";
 
 const Tab = createBottomTabNavigator();
 
