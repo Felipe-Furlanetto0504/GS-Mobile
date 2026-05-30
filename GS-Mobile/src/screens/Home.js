@@ -1,104 +1,42 @@
-// src/screens/Home.js  (Fazendas — tela principal)
 import { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
   StatusBar, RefreshControl, Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, corStatus } from '../constants/colors';
-import { mockFazendas } from '../services/mockData';
-// import { getFazendas } from '../services/api';
+import { Colors } from '../constants/colors';
 
 export default function Home({ navigation }) {
-  const [fazendas,   setFazendas]   = useState([]);
+  const [fazenda,    setFazenda]    = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const carregar = async () => {
+  const carregar = useCallback(async () => {
     try {
-      // const { data } = await getFazendas();
-      // setFazendas(data);
-      await new Promise((r) => setTimeout(r, 600));
-      setFazendas(mockFazendas);
+      const raw = await AsyncStorage.getItem('INFORMACOES');
+      if (raw) setFazenda(JSON.parse(raw));
     } catch {
-      Alert.alert('Erro', 'Não foi possível carregar as fazendas.');
+      Alert.alert('Erro', 'Não foi possível carregar os dados.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { carregar(); }, []);
-  const onRefresh = useCallback(() => { setRefreshing(true); carregar(); }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const onRefresh = useCallback(() => { setRefreshing(true); carregar(); }, [carregar]);
 
   async function sair() {
     Alert.alert('Sair', 'Deseja encerrar a sessão?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Sair', style: 'destructive', onPress: async () => {
-          await AsyncStorage.removeItem('@agroguard:token');
+          await AsyncStorage.removeItem('Logado');
           navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         },
       },
     ]);
-  }
-
-  function statusFazenda(talhoes) {
-    if (talhoes.some((t) => t.status_atual === 'Crítico'))       return 'Crítico';
-    if (talhoes.some((t) => t.status_atual === 'Em Observação')) return 'Em Observação';
-    return 'Saudável';
-  }
-
-  function renderTalhao(t) {
-    return (
-      <View key={t.id} style={[s.talhaoRow, { borderLeftColor: corStatus(t.status_atual) }]}>
-        <View style={[s.talhaoDot, { backgroundColor: corStatus(t.status_atual) }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.talhaoNome}>{t.nome}</Text>
-          <Text style={s.talhaoSub}>{t.cultura_plantada} · {t.area_hectares} ha</Text>
-        </View>
-        <View style={s.ndviWrap}>
-          <Text style={s.ndviLabel}>NDVI</Text>
-          <Text style={[s.ndviValor, { color: corStatus(t.status_atual) }]}>
-            {t.indice_ndvi.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  function renderFazenda({ item }) {
-    const st     = statusFazenda(item.talhoes);
-    const criticos = item.talhoes.filter((t) => t.status_atual === 'Crítico').length;
-    return (
-      <View style={s.card}>
-        <View style={s.cardTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardNome}>{item.nome}</Text>
-            <Text style={s.cardLocal}>📍 {item.municipio}, {item.estado}</Text>
-          </View>
-          <View style={[s.badge, { backgroundColor: corStatus(st) + '22', borderColor: corStatus(st) }]}>
-            <Text style={[s.badgeTexto, { color: corStatus(st) }]}>{st}</Text>
-          </View>
-        </View>
-
-        <View style={s.metricas}>
-          {[
-            { v: item.area_total_hectares, l: 'ha total' },
-            { v: item.talhoes.length,      l: 'talhões' },
-            { v: criticos,                 l: 'críticos', c: criticos > 0 ? Colors.critico : null },
-          ].map(({ v, l, c }) => (
-            <View key={l} style={s.metricaItem}>
-              <Text style={[s.metricaValor, c && { color: c }]}>{v}</Text>
-              <Text style={s.metricaLabel}>{l}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={s.secaoLabel}>TALHÕES</Text>
-        {item.talhoes.map(renderTalhao)}
-      </View>
-    );
   }
 
   return (
@@ -113,20 +51,41 @@ export default function Home({ navigation }) {
           </TouchableOpacity>
         </View>
         <Text style={s.titulo}>FAZENDAS</Text>
-        <Text style={s.subtitulo}>{fazendas.length} fazenda{fazendas.length !== 1 ? 's' : ''} monitorada{fazendas.length !== 1 ? 's' : ''}</Text>
+        <Text style={s.subtitulo}>{fazenda ? '1 fazenda monitorada' : 'Nenhuma fazenda cadastrada'}</Text>
       </View>
 
       {loading ? (
-        <View style={s.centrado}><Text style={s.loadingTexto}>Carregando fazendas...</Text></View>
+        <View style={s.centrado}>
+          <Text style={s.loadingTexto}>Carregando...</Text>
+        </View>
       ) : (
-        <FlatList
-          data={fazendas}
-          keyExtractor={(i) => String(i.id)}
-          renderItem={renderFazenda}
+        <ScrollView
           contentContainerStyle={s.lista}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primario} />}
-          ListEmptyComponent={<View style={s.centrado}><Text style={s.emptyTexto}>Nenhuma fazenda cadastrada.</Text></View>}
-        />
+        >
+          {fazenda ? (
+            <View style={s.card}>
+              <View style={s.cardTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.cardNome}>{fazenda.nomeFazenda}</Text>
+                  <Text style={s.cardDono}>👤 {fazenda.nome}</Text>
+                </View>
+                <View style={s.badge}>
+                  <Text style={s.badgeTexto}>Saudável</Text>
+                </View>
+              </View>
+
+              <Text style={s.secaoLabel}>TALHÕES</Text>
+              <View style={s.talhaoVazio}>
+                <Text style={s.talhaoVazioTexto}>Nenhum talhão cadastrado.</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={s.centrado}>
+              <Text style={s.emptyTexto}>Nenhuma fazenda cadastrada.</Text>
+            </View>
+          )}
+        </ScrollView>
       )}
     </View>
   );
@@ -188,7 +147,6 @@ const s = StyleSheet.create({
   },
   lista: {
     padding: 16,
-    gap: 14,
   },
   card: {
     backgroundColor: Colors.fundoCard,
@@ -200,14 +158,14 @@ const s = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   cardNome: {
     fontSize: 16,
     fontWeight: '800',
     color: Colors.textoPrimario,
   },
-  cardLocal: {
+  cardDono: {
     fontSize: 11,
     color: Colors.textoSub,
     marginTop: 3,
@@ -217,32 +175,14 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
+    borderColor: Colors.saudavel,
+    backgroundColor: Colors.saudavel + '22',
     marginLeft: 8,
   },
   badgeTexto: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  metricas: {
-    flexDirection: 'row',
-    backgroundColor: Colors.fundo,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-  },
-  metricaItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metricaValor: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: Colors.textoPrimario,
-  },
-  metricaLabel: {
-    fontSize: 10,
-    color: Colors.textoSub,
-    marginTop: 2,
+    color: Colors.saudavel,
   },
   secaoLabel: {
     fontSize: 10,
@@ -251,40 +191,14 @@ const s = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 8,
   },
-  talhaoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  talhaoVazio: {
     backgroundColor: Colors.fundo,
     borderRadius: 8,
-    borderLeftWidth: 3,
-    padding: 10,
-    marginBottom: 6,
-    gap: 10,
+    padding: 14,
+    alignItems: 'center',
   },
-  talhaoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  talhaoNome: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textoPrimario,
-  },
-  talhaoSub: {
-    fontSize: 11,
-    color: Colors.textoSub,
-    marginTop: 2,
-  },
-  ndviWrap: {
-    alignItems: 'flex-end',
-  },
-  ndviLabel: {
-    fontSize: 9,
+  talhaoVazioTexto: {
+    fontSize: 12,
     color: Colors.textoTercio,
-  },
-  ndviValor: {
-    fontSize: 16,
-    fontWeight: '900',
   },
 });
