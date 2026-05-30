@@ -11,19 +11,19 @@ const INTEGRANTES = [
 
 const LINKS = {
   github: "https://github.com/Felipe-Furlanetto0504/GS-Mobile",
-  video: "https://youtube.com/watch?v=SEU_VIDEO_ID",
+  video:  "https://youtube.com/watch?v=SEU_VIDEO_ID",
 };
 
 const TECNOLOGIAS = [
-  { icone: "phone-android", cor: "#4A90E2", nome: "React Native", detalhe: "Interface mobile multiplataforma" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
-  { icone: "", cor: "", nome: "", detalhe: "" },
+  { icone: "phone-android",          cor: "#4A90E2", nome: "React Native",     detalhe: "Interface mobile multiplataforma" },
+  { icone: "code",                   cor: "#C8A96E", nome: "Java Spring Boot",  detalhe: "API REST com JWT e HATEOAS" },
+  { icone: "storage",                cor: "#e74c3c", nome: "Oracle 19c",        detalhe: "Banco de dados relacional" },
+  { icone: "storage",                cor: "#4caf50", nome: "MongoDB",           detalhe: "Dados satelitais em formato JSON" },
+  { icone: "cloud",                  cor: "#3b82f6", nome: "Docker + Azure",    detalhe: "Containers e deploy em nuvem" },
+  { icone: "wifi",                   cor: "#f59e0b", nome: "ESP32 IoT",         detalhe: "Sensor DHT22 e umidade do solo" },
+  { icone: "satellite",              cor: "#8b5cf6", nome: "ESA Sentinel-2",    detalhe: "Dados satelitais abertos para NDVI" },
+  { icone: "security",               cor: "#10b981", nome: "Spring Security",   detalhe: "Autenticação e autorização JWT" },
+  { icone: "precision-manufacturing",cor: "#f97316", nome: "Drone Dispatch",    detalhe: "Missões de pulverização automatizadas" },
 ];
 
 export default function Sobre() {
@@ -40,7 +40,7 @@ export default function Sobre() {
     <View style={styles.wrapper}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.cabecalho}>
@@ -49,10 +49,11 @@ export default function Sobre() {
           <View style={styles.appIcone}>
             <FontAwesome5 name="sun" size={32} color="#C8A96E" />
           </View>
-          <Text style={styles.appNome}>A</Text>
-          <Text style={styles.appVersao}>v1.0.0 · FIAP 2025</Text>
+          <Text style={styles.appNome}>AgroVision</Text>
+          <Text style={styles.appVersao}>v1.0.0 · FIAP 2026</Text>
           <Text style={styles.appDescricao}>
-           AAAAAA
+            Monitoramento agrícola via satélite com detecção
+            de pragas e gestão de missões de drone.
           </Text>
         </View>
 
@@ -62,31 +63,34 @@ export default function Sobre() {
             <MaterialIcons name="wb-sunny" size={22} color="#e74c3c" />
           </View>
           <View style={styles.cardInfo}>
-            <Text style={styles.cardNome}>A</Text>
+            <Text style={styles.cardNome}>Pragas não detectadas a tempo</Text>
             <Text style={styles.cardDetalhe}>
-             AAAAAAA
+              Até 40% da produção pode ser perdida quando pragas
+              são identificadas apenas no estágio visual, sem
+              monitoramento contínuo das lavouras.
             </Text>
           </View>
         </View>
 
-        
         <Text style={styles.secaoTitulo}>A SOLUÇÃO</Text>
         <View style={styles.card}>
           <View style={[styles.cardIcone, { backgroundColor: "#f39c1220" }]}>
             <MaterialIcons name="grass" size={22} color="#f39c12" />
           </View>
           <View style={styles.cardInfo}>
-            <Text style={styles.cardNome}>A</Text>
+            <Text style={styles.cardNome}>Satélite + IoT + Drone</Text>
             <Text style={styles.cardDetalhe}>
-             AAAAAA
+              Cruzamento de índice NDVI satelital com sensores
+              ESP32 em campo para gerar alertas automáticos e
+              acionar drones de forma cirúrgica na área afetada.
             </Text>
           </View>
         </View>
 
         <Text style={styles.secaoTitulo}>ENTREGÁVEIS</Text>
         {[
-          { icone: "code", cor: "#C8A96E", nome: "Repositório GitHub", url: LINKS.github, urlLabel: LINKS.github },
-          { icone: "play-circle-outline", cor: "#e74c3c", nome: "Vídeo Pitch — YouTube", url: LINKS.video, urlLabel: LINKS.video },
+          { icone: "code",                cor: "#C8A96E", nome: "Repositório GitHub",    url: LINKS.github, urlLabel: LINKS.github },
+          { icone: "play-circle-outline", cor: "#e74c3c", nome: "Vídeo Pitch — YouTube", url: LINKS.video,  urlLabel: LINKS.video },
         ].map((item) => (
           <TouchableOpacity
             key={item.nome}
@@ -140,7 +144,7 @@ export default function Sobre() {
         <View style={styles.rodape}>
           <FontAwesome5 name="sun" size={12} color="#444" />
           <Text style={styles.rodapeTexto}>
-            FIAP · Disruptive Architectures: IoT, IoB & Generative IA · Global Solution · 1º Sprint 2026
+            FIAP · Global Solution 2026/1 · Análise e Desenvolvimento de Sistemas
           </Text>
         </View>
       </ScrollView>
@@ -156,9 +160,7 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 48,
   },
-
   cabecalho: {
     alignItems: "center",
     paddingTop: 48,
@@ -208,7 +210,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
-
   secaoTitulo: {
     fontSize: 11,
     fontWeight: "700",
@@ -217,7 +218,6 @@ const styles = StyleSheet.create({
     marginTop: 28,
     marginBottom: 12,
   },
-
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -262,7 +262,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#555",
   },
-
   avatar: {
     width: 44,
     height: 44,
@@ -277,7 +276,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1A1A1A",
   },
-
   rodape: {
     flexDirection: "row",
     alignItems: "center",
