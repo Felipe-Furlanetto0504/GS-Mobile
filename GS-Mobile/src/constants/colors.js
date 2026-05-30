@@ -1,6 +1,6 @@
 export const Colors = {
   fundo:          '#1A1A1A',
-  fundoCard:      '#222222',
+  fundoCard:      '#242424',
   primario:       '#C8A96E',
   primarioEscuro: '#2A1F0E',
   primarioClaro:  '#E8C98E',
@@ -11,3 +11,11 @@ export const Colors = {
   observacao:     '#F59E0B',
   saudavel:       '#22C55E',
 };
+
+export function corStatus(status) {
+  switch (status) {
+    case 'Crítico':        return Colors.critico;
+    case 'Em Observação':  return Colors.observacao;
+    default:               return Colors.saudavel;
+  }
+}

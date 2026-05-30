@@ -1,3 +1,29 @@
+export const mockFazendas = [
+  {
+    id: 1,
+    nome: 'Fazenda São João',
+    municipio: 'Ribeirão Preto',
+    estado: 'SP',
+    area_total_hectares: 320,
+    talhoes: [
+      { id: 1, nome: 'Talhão A1', cultura_plantada: 'Soja', area_hectares: 80, indice_ndvi: 0.72, status_atual: 'Saudável' },
+      { id: 2, nome: 'Talhão A2', cultura_plantada: 'Soja', area_hectares: 95, indice_ndvi: 0.31, status_atual: 'Crítico' },
+      { id: 3, nome: 'Talhão B1', cultura_plantada: 'Milho', area_hectares: 145, indice_ndvi: 0.55, status_atual: 'Em Observação' },
+    ],
+  },
+  {
+    id: 2,
+    nome: 'Fazenda Boa Esperança',
+    municipio: 'Uberaba',
+    estado: 'MG',
+    area_total_hectares: 210,
+    talhoes: [
+      { id: 4, nome: 'Talhão C1', cultura_plantada: 'Cana-de-açúcar', area_hectares: 110, indice_ndvi: 0.68, status_atual: 'Saudável' },
+      { id: 5, nome: 'Talhão C2', cultura_plantada: 'Cana-de-açúcar', area_hectares: 100, indice_ndvi: 0.61, status_atual: 'Saudável' },
+    ],
+  },
+];
+
 export const mockAlertas = [
   {
     id: 1,
