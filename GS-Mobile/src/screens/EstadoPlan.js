@@ -1,4 +1,3 @@
-// src/screens/EstadoPlan.js  (Alertas ativos)
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
@@ -6,7 +5,6 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { mockAlertas } from '../services/mockData';
-// import { getAlertas, resolverAlerta } from '../services/api';
 
 function corUrgencia(urgencia) {
   switch (urgencia) {
@@ -23,8 +21,6 @@ export default function EstadoPlan() {
 
   const carregar = async () => {
     try {
-      // const { data } = await getAlertas();
-      // setAlertas(data);
       await new Promise((r) => setTimeout(r, 500));
       setAlertas(mockAlertas);
     } catch {
@@ -43,7 +39,6 @@ export default function EstadoPlan() {
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Resolver', onPress: async () => {
-          // await resolverAlerta(alerta.id);
           setAlertas((prev) => prev.filter((a) => a.id !== alerta.id));
         },
       },

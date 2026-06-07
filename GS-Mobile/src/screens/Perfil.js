@@ -51,7 +51,6 @@ export default function Perfil({ navigation }) {
         <Text style={styles.titulo}>PERFIL</Text>
       </View>
 
-      {/* Avatar */}
       <View style={styles.avatarWrapper}>
         <View style={styles.avatar}>
           <Text style={styles.avatarLetra}>
@@ -62,7 +61,6 @@ export default function Perfil({ navigation }) {
         <Text style={styles.fazendaDestaque}>{dados.nomeFazenda}</Text>
       </View>
 
-      {/* Estatísticas */}
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statValor}>{totalPlantacoes}</Text>
@@ -80,7 +78,6 @@ export default function Perfil({ navigation }) {
         </View>
       </View>
 
-      {/* Dados do usuário */}
       <View style={styles.card}>
         <View style={styles.item}>
           <Text style={styles.itemLabel}>NOME COMPLETO</Text>
@@ -103,7 +100,6 @@ export default function Perfil({ navigation }) {
         </View>
       </View>
 
-      {/* Botão sair */}
       <TouchableOpacity style={styles.btnSair} onPress={sair} activeOpacity={0.85}>
         <Text style={styles.btnSairTexto}>ENCERRAR SESSÃO</Text>
       </TouchableOpacity>

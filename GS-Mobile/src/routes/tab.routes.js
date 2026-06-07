@@ -2,11 +2,13 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import EstadoPlan from "../screens/EstadoPlan";
 import Home from "../screens/Home";
 import Perfil from "../screens/Perfil";
 import Plantacao from "../screens/Plantacao";
 import Sobre from "../screens/Sobre";
+import Insumo from "../screens/Insumo";
 
 const Tab = createBottomTabNavigator();
 
@@ -60,6 +62,16 @@ export default function TabRoutes() {
           tabBarLabel: "PLANTAÇÃO",
           tabBarIcon: ({ color, size }) => (
             <Feather name="sun" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Insumos"
+        component={Insumo}
+        options={{
+          tabBarLabel: "INSUMOS",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="silo" color={color} size={size} />
           ),
         }}
       />
