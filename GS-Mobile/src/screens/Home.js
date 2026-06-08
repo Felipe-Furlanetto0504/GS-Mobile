@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   RefreshControl,
   Alert,
+  FlatList,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,29 +19,28 @@ export default function Home({ navigation }) {
   const s = estilos(tema);
 
   const [fazenda, setFazenda] = useState(null);
+  const [plantacoes, setPlantacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const carregar = useCallback(async () => {
+  async function carregar() {
     try {
-      const raw = await AsyncStorage.getItem("INFORMACOES");
-      if (raw) setFazenda(JSON.parse(raw));
+      const rawFazenda = await AsyncStorage.getItem("INFORMACOES");
+      const rawPlantacoes = await AsyncStorage.getItem("PLANTACOES");
+      if (rawFazenda) setFazenda(JSON.parse(rawFazenda));
+      if (rawPlantacoes) setPlantacoes(JSON.parse(rawPlantacoes));
+      else setPlantacoes([]);
     } catch {
       Alert.alert("Erro", "Não foi possível carregar os dados.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
     carregar();
-  }, [carregar]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    carregar();
-  }, [carregar]);
+  }, []);
 
   async function sair() {
     Alert.alert("Sair", "Deseja encerrar a sessão?", [
@@ -54,6 +54,43 @@ export default function Home({ navigation }) {
         },
       },
     ]);
+  }
+
+  const STATUS_CONFIG = {
+    PLANTADO: { cor: "#4CAF7D", icone: "activity" },
+    PREPARACAO: { cor: "#C8A96E", icone: "tool" },
+    DESCANSO: { cor: "#7B8FA1", icone: "moon" },
+  };
+
+  function renderPlantacao({ item }) {
+    const partes = item.dataPlantio?.split("/") || [];
+    const dia = partes[0] || "--";
+    const mes = partes[1] || "--";
+    const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.PLANTADO;
+
+    return (
+      <View style={s.plantacaoCard}>
+        <View style={s.plantacaoData}>
+          <Text style={s.plantacaoDia}>{dia}</Text>
+          <Text style={s.plantacaoMes}>/{mes}</Text>
+        </View>
+        <View style={s.plantacaoInfo}>
+          <Text style={s.plantacaoNome}>{item.cultura}</Text>
+          <View style={s.plantacaoLinha}>
+            <Feather name="map-pin" size={11} color="#C8A96E" />
+            <Text style={s.plantacaoDetalhe}> {item.talhao}</Text>
+          </View>
+          <View style={s.plantacaoLinha}>
+            <Feather name={config.icone} size={11} color={config.cor} />
+            <Text style={[s.plantacaoDetalhe, { color: config.cor }]}>
+              {" "}
+              {item.status}
+            </Text>
+          </View>
+        </View>
+        <Text style={s.plantacaoArea}>{item.area} ha</Text>
+      </View>
+    );
   }
 
   return (
@@ -83,7 +120,10 @@ export default function Home({ navigation }) {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={onRefresh}
+              onRefresh={() => {
+                setRefreshing(true);
+                carregar();
+              }}
               tintColor={tema.acento}
             />
           }
@@ -97,20 +137,48 @@ export default function Home({ navigation }) {
                 </View>
               </View>
 
-              <Text style={s.secaoLabel}>TALHÕES</Text>
-              <View style={s.talhaoVazio}>
-                <Text style={s.talhaoVazioTexto}>
-                  Nenhuma plantação cadastrada.
-                </Text>
-                <TouchableOpacity
-                  style={s.btnPlantacao}
-                  onPress={() => navigation.navigate("plantacao")}
-                  activeOpacity={0.85}
-                >
-                  <Feather name="plus" size={14} color="#1A1A1A" />
-                  <Text style={s.btnPlantacaoTexto}>NOVA PLANTAÇÃO</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={s.secaoLabel}>
+                TALHÕES {plantacoes.length > 0 ? `(${plantacoes.length})` : ""}
+              </Text>
+
+              {plantacoes.length === 0 ? (
+                <View style={s.talhaoVazio}>
+                  <Text style={s.talhaoVazioTexto}>
+                    Nenhuma plantação cadastrada.
+                  </Text>
+                  <TouchableOpacity
+                    style={s.btnPlantacao}
+                    onPress={() => navigation.navigate("plantacao")}
+                    activeOpacity={0.85}
+                  >
+                    <Feather name="plus" size={14} color="#1A1A1A" />
+                    <Text style={s.btnPlantacaoTexto}>NOVA PLANTAÇÃO</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <FlatList
+                    data={plantacoes}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderPlantacao}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={() => (
+                      <View style={{ height: 8 }} />
+                    )}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      s.btnPlantacao,
+                      { marginTop: 12, alignSelf: "center" },
+                    ]}
+                    onPress={() => navigation.navigate("plantacao")}
+                    activeOpacity={0.85}
+                  >
+                    <Feather name="plus" size={14} color="#1A1A1A" />
+                    <Text style={s.btnPlantacaoTexto}>NOVA PLANTAÇÃO</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           ) : (
             <View style={s.centrado}>
@@ -164,7 +232,7 @@ const estilos = (tema) =>
       fontWeight: "700",
       letterSpacing: 1,
     },
-    lista: { padding: 16 },
+    lista: { padding: 16, paddingBottom: 100 },
     card: {
       backgroundColor: tema.fundoCard,
       borderRadius: 12,
@@ -222,5 +290,41 @@ const estilos = (tema) =>
       fontWeight: "800",
       color: "#1A1A1A",
       letterSpacing: 2,
+    },
+    plantacaoCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: tema.fundo,
+      borderRadius: 10,
+      padding: 12,
+      borderWidth: 0.5,
+      borderColor: tema.borda,
+      borderLeftWidth: 3,
+      borderLeftColor: tema.acento,
+    },
+    plantacaoData: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: tema.fundoIcone,
+      borderRadius: 8,
+      width: 44,
+      height: 44,
+      marginRight: 12,
+    },
+    plantacaoDia: {
+      fontSize: 17,
+      fontWeight: "900",
+      color: tema.acento,
+      lineHeight: 19,
+    },
+    plantacaoMes: { fontSize: 10, color: tema.acento },
+    plantacaoInfo: { flex: 1, gap: 3 },
+    plantacaoNome: { fontSize: 13, fontWeight: "700", color: tema.texto },
+    plantacaoLinha: { flexDirection: "row", alignItems: "center" },
+    plantacaoDetalhe: { fontSize: 11, color: tema.textoSecundario },
+    plantacaoArea: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: tema.textoSecundario,
     },
   });
