@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTema } from "../theme";
 import EstadoPlan from "../screens/EstadoPlan";
 import Home from "../screens/Home";
 import Perfil from "../screens/Perfil";
@@ -12,12 +13,9 @@ import Insumo from "../screens/Insumo";
 
 const Tab = createBottomTabNavigator();
 
-function TabBarBackground() {
-  return <View style={styles.tabBg} />;
-}
-
 export default function TabRoutes() {
   const insets = useSafeAreaInsets();
+  const { tema } = useTema();
 
   return (
     <Tab.Navigator
@@ -35,9 +33,19 @@ export default function TabRoutes() {
           borderTopWidth: 0,
           elevation: 0,
         },
-        tabBarBackground: () => <TabBarBackground />,
-        tabBarActiveTintColor: "#C8A96E",
-        tabBarInactiveTintColor: "#555",
+        tabBarBackground: () => (
+          <View
+            style={[
+              styles.tabBg,
+              {
+                backgroundColor: tema.tabBg,
+                borderTopColor: tema.tabBorda,
+              },
+            ]}
+          />
+        ),
+        tabBarActiveTintColor:   tema.tabAtivo,
+        tabBarInactiveTintColor: tema.tabInativo,
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: "700",
@@ -116,7 +124,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    backgroundColor: "#111111",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: "#000",
@@ -125,7 +132,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 20,
     borderTopWidth: 1,
-    borderTopColor: "#2A2A2A",
-    paddingBottom: 100,
   },
 });
