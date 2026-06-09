@@ -38,9 +38,8 @@
 |:---|:---|
 | 🚀 **API Backend** | [https://agrovision-gs-fewn.onrender.com](https://agrovision-gs-fewn.onrender.com) |
 | 📄 **Swagger da API** | [https://agrovision-gs-fewn.onrender.com/swagger-ui.html](https://agrovision-gs-fewn.onrender.com/swagger-ui.html) |
-| 🎬 **Vídeo de Apresentação** (até 10 min) | `[ a preencher ]` |
-| 🎯 **Video Pitch** (até 3 min) | `[ a preencher ]` |
-| 💻 **Repositório GitHub** | `[ a preencher ]` |
+| 🎬 **Vídeo de Apresentação** (até 10 min) | `https://youtu.be/_95IJLY-NvE` |
+| 💻 **Repositório GitHub** | `https://github.com/Felipe-Furlanetto0504/GS-Mobile` |
 
 ---
 
