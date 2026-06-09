@@ -1,29 +1,65 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Text, View, StyleSheet, StatusBar,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert, ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTema } from "../theme";
+
+const API_BASE_URL = "https://agrovision-gs-fewn.onrender.com";
+
+async function fetchComToken(path, options = {}) {
+  const token = await AsyncStorage.getItem("token");
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
 
 export default function Perfil({ navigation }) {
   const { tema, modoEscuro, alternarTema } = useTema();
   const s = estilos(tema);
 
-  const [dados,           setDados]           = useState(null);
+  const [dados, setDados] = useState(null);
   const [totalPlantacoes, setTotalPlantacoes] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function carregar() {
-      const dadosSalvos = await AsyncStorage.getItem("INFORMACOES");
-      if (dadosSalvos) setDados(JSON.parse(dadosSalvos));
+  async function carregar() {
+    setLoading(true);
+    try {
+      const rawUsuario = await AsyncStorage.getItem("usuarioLogado");
+      if (!rawUsuario) {
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        return;
+      }
 
-      const plantacoes = await AsyncStorage.getItem("PLANTACOES");
-      if (plantacoes) setTotalPlantacoes(JSON.parse(plantacoes).length);
+      const usuario = JSON.parse(rawUsuario);
+      setDados(usuario);
+
+      const response = await fetchComToken(`/api/plantacoes/usuario/${usuario.id}`);
+      if (response.ok) {
+        const plantacoes = await response.json();
+        setTotalPlantacoes(plantacoes.length);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar perfil:", error);
+    } finally {
+      setLoading(false);
     }
-    carregar();
-  }, []);
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      carregar();
+    }, [])
+  );
 
   async function sair() {
     Alert.alert("Sair", "Deseja encerrar a sessão?", [
@@ -32,20 +68,25 @@ export default function Perfil({ navigation }) {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.clear();
+          await AsyncStorage.multiRemove(["token", "usuarioLogado"]);
           navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         },
       },
     ]);
   }
 
-  if (!dados) {
+  if (loading || !dados) {
     return (
       <View style={s.loadingContainer}>
         <StatusBar barStyle={tema.statusBar} backgroundColor={tema.statusBarBg} />
-        <Text style={s.loadingText}>CARREGANDO...</Text>
+        <ActivityIndicator size="large" color={tema.acento} />
       </View>
     );
+  }
+
+  function formatarCpf(cpf) {
+    const c = String(cpf).padStart(11, "0");
+    return `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}`;
   }
 
   return (
@@ -103,13 +144,8 @@ export default function Perfil({ navigation }) {
         </View>
         <View style={s.separador} />
         <View style={s.item}>
-          <Text style={s.itemLabel}>E-MAIL</Text>
-          <Text style={s.itemValor}>{dados.email ?? "—"}</Text>
-        </View>
-        <View style={s.separador} />
-        <View style={s.item}>
           <Text style={s.itemLabel}>CPF</Text>
-          <Text style={s.itemValor}>{dados.cpf}</Text>
+          <Text style={s.itemValor}>{formatarCpf(dados.cpf)}</Text>
         </View>
         <View style={s.separador} />
         <View style={s.item}>
@@ -121,7 +157,6 @@ export default function Perfil({ navigation }) {
       <TouchableOpacity style={s.btnSair} onPress={sair} activeOpacity={0.85}>
         <Text style={s.btnSairTexto}>ENCERRAR SESSÃO</Text>
       </TouchableOpacity>
-
     </View>
   );
 }
@@ -138,11 +173,6 @@ const estilos = (tema) => StyleSheet.create({
     backgroundColor: tema.fundo,
     justifyContent: "center",
     alignItems: "center",
-  },
-  loadingText: {
-    color: tema.textoSecundario,
-    fontSize: 11,
-    letterSpacing: 2,
   },
   header: {
     paddingTop: 64,

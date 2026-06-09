@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,28 +9,72 @@ import {
   RefreshControl,
   Alert,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTema } from "../theme";
+
+const API_BASE_URL = "https://agrovision-gs-fewn.onrender.com";
+
+async function fetchComToken(path, options = {}) {
+  const token = await AsyncStorage.getItem("token");
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
 
 export default function Home({ navigation }) {
   const { tema } = useTema();
   const s = estilos(tema);
 
-  const [fazenda, setFazenda] = useState(null);
+  const [usuario, setUsuario] = useState(null);
   const [plantacoes, setPlantacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   async function carregar() {
     try {
-      const rawFazenda = await AsyncStorage.getItem("INFORMACOES");
-      const rawPlantacoes = await AsyncStorage.getItem("PLANTACOES");
-      if (rawFazenda) setFazenda(JSON.parse(rawFazenda));
-      if (rawPlantacoes) setPlantacoes(JSON.parse(rawPlantacoes));
-      else setPlantacoes([]);
-    } catch {
+      const rawUsuario = await AsyncStorage.getItem("usuarioLogado");
+      if (!rawUsuario) {
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        return;
+      }
+
+      const usuarioSalvo = JSON.parse(rawUsuario);
+      setUsuario(usuarioSalvo);
+      console.log("usuarioSalvo:", JSON.stringify(usuarioSalvo));
+      console.log("buscando plantações de id:", usuarioSalvo.id);
+
+      const response = await fetchComToken(
+        `/api/plantacoes/usuario/${usuarioSalvo.id}`,
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        await AsyncStorage.multiRemove(["token", "usuarioLogado"]);
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        return;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("plantações recebidas:", JSON.stringify(data));
+        setPlantacoes(data);
+      } else {
+        console.log("erro ao buscar plantações, status:", response.status);
+        const erro = await response.json().catch(() => null);
+        console.log("erro body:", JSON.stringify(erro));
+        setPlantacoes([]);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar:", error);
       Alert.alert("Erro", "Não foi possível carregar os dados.");
     } finally {
       setLoading(false);
@@ -38,9 +82,12 @@ export default function Home({ navigation }) {
     }
   }
 
-  useEffect(() => {
-    carregar();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      carregar();
+    }, []),
+  );
 
   async function sair() {
     Alert.alert("Sair", "Deseja encerrar a sessão?", [
@@ -49,7 +96,7 @@ export default function Home({ navigation }) {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.removeItem("Logado");
+          await AsyncStorage.multiRemove(["token", "usuarioLogado"]);
           navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         },
       },
@@ -63,8 +110,8 @@ export default function Home({ navigation }) {
   };
 
   function renderPlantacao({ item }) {
-    const partes = item.dataPlantio?.split("/") || [];
-    const dia = partes[0] || "--";
+    const partes = item.dataPlantio?.split("-") || [];
+    const dia = partes[2] || "--";
     const mes = partes[1] || "--";
     const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.PLANTADO;
 
@@ -75,10 +122,10 @@ export default function Home({ navigation }) {
           <Text style={s.plantacaoMes}>/{mes}</Text>
         </View>
         <View style={s.plantacaoInfo}>
-          <Text style={s.plantacaoNome}>{item.cultura}</Text>
+          <Text style={s.plantacaoNome}>{item.tipoPlantio}</Text>
           <View style={s.plantacaoLinha}>
             <Feather name="map-pin" size={11} color="#C8A96E" />
-            <Text style={s.plantacaoDetalhe}> {item.talhao}</Text>
+            <Text style={s.plantacaoDetalhe}> {item.localPlantio}</Text>
           </View>
           <View style={s.plantacaoLinha}>
             <Feather name={config.icone} size={11} color={config.cor} />
@@ -88,7 +135,7 @@ export default function Home({ navigation }) {
             </Text>
           </View>
         </View>
-        <Text style={s.plantacaoArea}>{item.area} ha</Text>
+        <Text style={s.plantacaoArea}>{item.areaPlantio} ha</Text>
       </View>
     );
   }
@@ -106,13 +153,14 @@ export default function Home({ navigation }) {
         </View>
         <Text style={s.titulo}>FAZENDAS</Text>
         <Text style={s.subtitulo}>
-          {fazenda ? "1 fazenda monitorada" : "Nenhuma fazenda cadastrada"}
+          {usuario ? "1 fazenda monitorada" : "Nenhuma fazenda cadastrada"}
         </Text>
       </View>
 
       {loading ? (
         <View style={s.centrado}>
-          <Text style={s.loadingTexto}>Carregando...</Text>
+          <ActivityIndicator size="large" color={tema.acento} />
+          <Text style={[s.loadingTexto, { marginTop: 12 }]}>Carregando...</Text>
         </View>
       ) : (
         <ScrollView
@@ -128,12 +176,12 @@ export default function Home({ navigation }) {
             />
           }
         >
-          {fazenda ? (
+          {usuario ? (
             <View style={s.card}>
               <View style={s.cardTop}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.cardNome}>{fazenda.nomeFazenda}</Text>
-                  <Text style={s.cardDono}>👤 {fazenda.nome}</Text>
+                  <Text style={s.cardNome}>{usuario.nomeFazenda}</Text>
+                  <Text style={s.cardDono}>👤 {usuario.nome}</Text>
                 </View>
               </View>
 
@@ -159,7 +207,7 @@ export default function Home({ navigation }) {
                 <>
                   <FlatList
                     data={plantacoes}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item) => String(item.id)}
                     renderItem={renderPlantacao}
                     scrollEnabled={false}
                     ItemSeparatorComponent={() => (
@@ -249,16 +297,6 @@ const estilos = (tema) =>
     },
     cardNome: { fontSize: 16, fontWeight: "800", color: tema.texto },
     cardDono: { fontSize: 11, color: tema.textoSecundario, marginTop: 3 },
-    badge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: "#22C55E",
-      backgroundColor: "#22C55E22",
-      marginLeft: 8,
-    },
-    badgeTexto: { fontSize: 11, fontWeight: "700", color: "#22C55E" },
     secaoLabel: {
       fontSize: 10,
       fontWeight: "700",

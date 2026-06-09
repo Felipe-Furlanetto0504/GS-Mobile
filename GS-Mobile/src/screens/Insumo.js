@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Text,
   View,
@@ -11,10 +11,27 @@ import {
   ScrollView,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useTema } from "../theme";
+
+const API_BASE_URL = "https://agrovision-gs-fewn.onrender.com";
+
+async function fetchComToken(path, options = {}) {
+  const token = await AsyncStorage.getItem("token");
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
 
 export default function Insumo() {
   const insets = useSafeAreaInsets();
@@ -22,31 +39,96 @@ export default function Insumo() {
   const s = estilos(tema);
 
   const [insumos, setInsumos] = useState([]);
+  const [plantacoes, setPlantacoes] = useState([]);
+  const [loadingLista, setLoadingLista] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nomeInsumo, setNomeInsumo] = useState("");
   const [qtdEstoque, setQtdEstoque] = useState("");
+  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState(null);
 
-  useEffect(() => {
-    carregarInsumos();
-  }, []);
+  async function carregarDados() {
+    setLoadingLista(true);
+    try {
+      const rawUsuario = await AsyncStorage.getItem("usuarioLogado");
+      if (!rawUsuario) return;
+      const usuario = JSON.parse(rawUsuario);
 
-  async function carregarInsumos() {
-    const dados = await AsyncStorage.getItem("INSUMOS");
-    if (dados) setInsumos(JSON.parse(dados));
+      const resPlantacoes = await fetchComToken(
+        `/api/plantacoes/usuario/${usuario.id}`,
+      );
+      if (resPlantacoes.ok) {
+        const data = await resPlantacoes.json();
+        setPlantacoes(data);
+
+        const todosInsumos = [];
+        for (const p of data) {
+          const resInsumos = await fetchComToken(
+            `/api/insumos/plantacao/${p.id}`,
+          );
+          if (resInsumos.ok) {
+            const ins = await resInsumos.json();
+            todosInsumos.push(...ins);
+          }
+        }
+        setInsumos(todosInsumos);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar insumos:", error);
+      Alert.alert("Erro", "Não foi possível carregar os insumos.");
+    } finally {
+      setLoadingLista(false);
+    }
   }
 
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+    }, []),
+  );
+
   async function salvarInsumo() {
-    if (!nomeInsumo || !qtdEstoque) {
-      Alert.alert("Erro", "Preencha todos os campos");
+    if (!nomeInsumo || !qtdEstoque || !plantacaoSelecionada) {
+      Alert.alert(
+        "Erro",
+        "Preencha todos os campos e selecione uma plantação.",
+      );
       return;
     }
-    const novo = { id: Date.now().toString(), nomeInsumo, qtdEstoque };
-    const novaLista = [...insumos, novo];
-    setInsumos(novaLista);
-    await AsyncStorage.setItem("INSUMOS", JSON.stringify(novaLista));
-    setNomeInsumo("");
-    setQtdEstoque("");
-    setModalVisivel(false);
+
+    setSalvando(true);
+    try {
+      const response = await fetchComToken("/api/insumos", {
+        method: "POST",
+        body: JSON.stringify({
+          plantacaoId: plantacaoSelecionada.id,
+          nomeInsumo: nomeInsumo.trim(),
+          qtdEstoque: parseFloat(qtdEstoque),
+        }),
+      });
+
+      if (response.status === 201) {
+        setNomeInsumo("");
+        setQtdEstoque("");
+        setPlantacaoSelecionada(null);
+        setModalVisivel(false);
+        await carregarDados();
+        Alert.alert("Sucesso", "Insumo cadastrado com sucesso!");
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+      Alert.alert("Erro", data?.message || "Não foi possível salvar o insumo.");
+    } catch (error) {
+      console.error("Erro ao salvar insumo:", error);
+      Alert.alert(
+        "Erro de conexão",
+        "Verifique sua internet e tente novamente.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function excluirInsumo(id) {
@@ -56,9 +138,18 @@ export default function Insumo() {
         text: "Excluir",
         style: "destructive",
         onPress: async () => {
-          const novaLista = insumos.filter((i) => i.id !== id);
-          setInsumos(novaLista);
-          await AsyncStorage.setItem("INSUMOS", JSON.stringify(novaLista));
+          try {
+            const response = await fetchComToken(`/api/insumos/${id}`, {
+              method: "DELETE",
+            });
+            if (response.status === 204) {
+              setInsumos((prev) => prev.filter((i) => i.id !== id));
+            } else {
+              Alert.alert("Erro", "Não foi possível excluir o insumo.");
+            }
+          } catch {
+            Alert.alert("Erro de conexão", "Verifique sua internet.");
+          }
         },
       },
     ]);
@@ -76,6 +167,12 @@ export default function Insumo() {
             <Feather name="package" size={12} color={tema.textoSecundario} />
             <Text style={s.cardDetalhe}> {item.qtdEstoque} un.</Text>
           </View>
+          {item.tipoPlantio && (
+            <View style={s.cardLinha}>
+              <Feather name="sun" size={12} color={tema.acento} />
+              <Text style={s.cardDetalhe}> {item.tipoPlantio}</Text>
+            </View>
+          )}
         </View>
         <TouchableOpacity
           onPress={() => excluirInsumo(item.id)}
@@ -96,7 +193,11 @@ export default function Insumo() {
         <Text style={s.titulo}>INSUMOS</Text>
       </View>
 
-      {insumos.length === 0 ? (
+      {loadingLista ? (
+        <View style={s.vazio}>
+          <ActivityIndicator size="large" color={tema.acento} />
+        </View>
+      ) : insumos.length === 0 ? (
         <View style={s.vazio}>
           <Feather name="package" size={56} color={tema.vazioIcone} />
           <Text style={s.vazioTexto}>Nenhum insumo cadastrado</Text>
@@ -105,7 +206,7 @@ export default function Insumo() {
       ) : (
         <FlatList
           data={insumos}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderInsumo}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
@@ -114,7 +215,16 @@ export default function Insumo() {
 
       <TouchableOpacity
         style={[s.botaoAdicionar, { marginBottom: 64 + insets.bottom + 16 }]}
-        onPress={() => setModalVisivel(true)}
+        onPress={() => {
+          if (plantacoes.length === 0) {
+            Alert.alert(
+              "Atenção",
+              "Cadastre uma plantação antes de adicionar insumos.",
+            );
+            return;
+          }
+          setModalVisivel(true);
+        }}
         activeOpacity={0.85}
       >
         <MaterialIcons name="add" size={20} color={tema.acentoTexto} />
@@ -136,6 +246,39 @@ export default function Insumo() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.label}>PLANTAÇÃO</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 4 }}
+              >
+                <View style={s.plantacaoContainer}>
+                  {plantacoes.map((p) => {
+                    const selecionado = plantacaoSelecionada?.id === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          s.plantacaoBotao,
+                          selecionado && s.plantacaoBotaoSelecionado,
+                        ]}
+                        onPress={() => setPlantacaoSelecionada(p)}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            s.plantacaoBotaoTexto,
+                            selecionado && s.plantacaoBotaoTextoSelecionado,
+                          ]}
+                        >
+                          {p.tipoPlantio} · {p.localPlantio}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
               <Text style={s.label}>NOME DO INSUMO</Text>
               <TextInput
                 value={nomeInsumo}
@@ -168,11 +311,20 @@ export default function Insumo() {
                 <TouchableOpacity
                   style={s.botaoCancelar}
                   onPress={() => setModalVisivel(false)}
+                  disabled={salvando}
                 >
                   <Text style={s.botaoCancelarTexto}>CANCELAR</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.botaoSalvar} onPress={salvarInsumo}>
-                  <Text style={s.botaoSalvarTexto}>SALVAR</Text>
+                <TouchableOpacity
+                  style={s.botaoSalvar}
+                  onPress={salvarInsumo}
+                  disabled={salvando}
+                >
+                  {salvando ? (
+                    <ActivityIndicator color="#1A1A1A" size="small" />
+                  ) : (
+                    <Text style={s.botaoSalvarTexto}>SALVAR</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -316,6 +468,25 @@ const estilos = (tema) =>
       fontSize: 14,
       color: tema.texto,
     },
+    plantacaoContainer: { flexDirection: "row", gap: 8 },
+    plantacaoBotao: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: tema.bordaStatus,
+      backgroundColor: tema.fundoStatus,
+    },
+    plantacaoBotaoSelecionado: {
+      borderColor: tema.acento,
+      backgroundColor: tema.acento + "22",
+    },
+    plantacaoBotaoTexto: {
+      fontSize: 12,
+      color: tema.textoBotaoIcone,
+      fontWeight: "600",
+    },
+    plantacaoBotaoTextoSelecionado: { color: tema.acento, fontWeight: "700" },
     modalBotoes: {
       flexDirection: "row",
       gap: 10,

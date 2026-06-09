@@ -1,42 +1,103 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet,Alert, ScrollView, KeyboardAvoidingView, Platform, StatusBar,} from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  ActivityIndicator,
+} from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
 
+const API_BASE_URL = "https://agrovision-gs-fewn.onrender.com";
+
 export default function Cadastrar({ navigation }) {
-  const [nome, SetNome] = useState("");
-  const [senha, SetSenha] = useState("");
-  const [cpf, SetCpf] = useState("");
-  const [nomeFazenda, SetNomeFazenda] = useState("");
-  const [mostrarSenha, SetMostrarSenha] = useState(false);
+  const [nome, setNome] = useState("");
+  const [senha, setSenha] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [nomeFazenda, setNomeFazenda] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
   async function salvar() {
     if (!nome || !senha || !cpf || !nomeFazenda) {
       Alert.alert("Erro", "Preencha todos os campos.");
       return;
     }
-    if (cpf.replace(/\D/g, "").length < 11) {
+
+    const cpfNumerico = cpf.replace(/\D/g, "");
+
+    if (cpfNumerico.length < 11) {
       Alert.alert("Erro", "CPF inválido.");
       return;
     }
+
     if (senha.length < 6) {
       Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
       return;
     }
+
+    setCarregando(true);
+
     try {
-      const dados = { nome, senha, cpf, nomeFazenda };
-      await AsyncStorage.setItem("usuarioLogado", JSON.stringify(dados));
-      await AsyncStorage.setItem("INFORMACOES", JSON.stringify(dados));
-      Alert.alert("Sucesso", "Cadastro realizado com sucesso!", [
-        {
-          text: "Ir para Login",
-          onPress: () =>
-            navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
+      const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-      ]);
+        body: JSON.stringify({
+          cpf: Number(cpfNumerico),
+          nome: nome.trim(),
+          senha,
+          nomeFazenda: nomeFazenda.trim(),
+        }),
+      });
+
+      if (response.status === 201) {
+        Alert.alert("Sucesso", "Cadastro realizado com sucesso!", [
+          {
+            text: "Ir para Login",
+            onPress: () =>
+              navigation.reset({ index: 0, routes: [{ name: "Login" }] }),
+          },
+        ]);
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+
+      if (response.status === 409) {
+        Alert.alert("Erro", "CPF já cadastrado. Tente fazer login.");
+        return;
+      }
+
+      if (response.status === 400) {
+        const mensagem =
+          data?.message ||
+          data?.errors?.join("\n") ||
+          "Dados inválidos. Verifique os campos.";
+        Alert.alert("Erro de validação", mensagem);
+        return;
+      }
+
+      Alert.alert(
+        "Erro",
+        data?.message || `Erro ao cadastrar (status ${response.status}).`,
+      );
     } catch (error) {
-      Alert.alert("Erro", "Não foi possível salvar os dados");
-      console.log(error);
+      console.error("Erro na requisição:", error);
+      Alert.alert(
+        "Erro de conexão",
+        "Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.",
+      );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -66,8 +127,9 @@ export default function Cadastrar({ navigation }) {
                 placeholder="Digite seu nome"
                 placeholderTextColor="#666"
                 value={nome}
-                onChangeText={SetNome}
+                onChangeText={setNome}
                 autoCapitalize="words"
+                editable={!carregando}
               />
             </View>
 
@@ -79,8 +141,9 @@ export default function Cadastrar({ navigation }) {
                 placeholder="000.000.000-00"
                 placeholderTextColor="#666"
                 value={cpf}
-                onChangeText={(text) => SetCpf(text)}
+                onChangeText={(text) => setCpf(text)}
                 keyboardType="numeric"
+                editable={!carregando}
               />
             </View>
 
@@ -91,8 +154,9 @@ export default function Cadastrar({ navigation }) {
                 placeholder="Digite o nome da fazenda"
                 placeholderTextColor="#666"
                 value={nomeFazenda}
-                onChangeText={SetNomeFazenda}
+                onChangeText={setNomeFazenda}
                 autoCapitalize="words"
+                editable={!carregando}
               />
             </View>
 
@@ -104,14 +168,16 @@ export default function Cadastrar({ navigation }) {
                   placeholder="Mínimo 6 caracteres"
                   placeholderTextColor="#666"
                   value={senha}
-                  onChangeText={SetSenha}
+                  onChangeText={setSenha}
                   secureTextEntry={!mostrarSenha}
                   autoCapitalize="none"
+                  editable={!carregando}
                 />
                 <TouchableOpacity
                   style={styles.olhoBtn}
-                  onPress={() => SetMostrarSenha(!mostrarSenha)}
+                  onPress={() => setMostrarSenha(!mostrarSenha)}
                   activeOpacity={0.7}
+                  disabled={carregando}
                 >
                   <Text style={styles.olhoTexto}>
                     {mostrarSenha ? "OCULTAR" : "MOSTRAR"}
@@ -121,11 +187,16 @@ export default function Cadastrar({ navigation }) {
             </View>
 
             <TouchableOpacity
-              style={styles.btnPrimario}
+              style={[styles.btnPrimario, carregando && styles.btnDesabilitado]}
               onPress={salvar}
               activeOpacity={0.85}
+              disabled={carregando}
             >
-              <Text style={styles.btnPrimarioText}>CADASTRAR</Text>
+              {carregando ? (
+                <ActivityIndicator color="#1A1A1A" size="small" />
+              ) : (
+                <Text style={styles.btnPrimarioText}>CADASTRAR</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -135,22 +206,10 @@ export default function Cadastrar({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingBottom: 48,
-  },
-  header: {
-    paddingTop: 64,
-    paddingBottom: 40,
-  },
+  wrapper: { flex: 1, backgroundColor: "#1A1A1A" },
+  container: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 48 },
+  header: { paddingTop: 64, paddingBottom: 40 },
   dividerTop: {
     width: 40,
     height: 3,
@@ -163,18 +222,9 @@ const styles = StyleSheet.create({
     color: "#F0EDE6",
     letterSpacing: 6,
   },
-  subtitle: {
-    fontSize: 13,
-    color: "#888",
-    marginTop: 8,
-    letterSpacing: 0.5,
-  },
-  form: {
-    flex: 1,
-  },
-  fieldGroup: {
-    marginBottom: 24,
-  },
+  subtitle: { fontSize: 13, color: "#888", marginTop: 8, letterSpacing: 0.5 },
+  form: { flex: 1 },
+  fieldGroup: { marginBottom: 24 },
   label: {
     fontSize: 11,
     fontWeight: "700",
@@ -191,12 +241,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#F0EDE6",
   },
-  senhaWrapper: {
-    position: "relative",
-  },
-  senhaInput: {
-    paddingRight: 80,
-  },
+  senhaWrapper: { position: "relative" },
+  senhaInput: { paddingRight: 80 },
   olhoBtn: {
     position: "absolute",
     right: 0,
@@ -217,6 +263,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
   },
+  btnDesabilitado: { opacity: 0.6 },
   btnPrimarioText: {
     fontSize: 13,
     fontWeight: "800",

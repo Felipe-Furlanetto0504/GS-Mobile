@@ -11,14 +11,41 @@ import {
   ScrollView,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { MaskedTextInput } from "react-native-mask-text";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTema } from "../theme";
 
-const STATUS_OPCOES = ["PLANTADO", "PREPARACAO", "DESCANSO"];
+const API_BASE_URL = "https://agrovision-gs-fewn.onrender.com";
 
+async function fetchComToken(path, options = {}) {
+  const token = await AsyncStorage.getItem("token");
+  return fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
+
+function formatarDataParaAPI(data) {
+  const p = data.replace(/\D/g, "");
+  if (p.length !== 8) return null;
+  const dia = p.slice(0, 2),
+    mes = p.slice(2, 4),
+    ano = p.slice(4);
+  if (Number(mes) < 1 || Number(mes) > 12) return null;
+  if (Number(dia) < 1 || Number(dia) > 31) return null;
+  if (Number(ano) < 2000 || Number(ano) > 2100) return null;
+  return `${ano}-${mes}-${dia}`;
+}
+
+const STATUS_OPCOES = ["PLANTADO", "PREPARACAO", "DESCANSO"];
 const STATUS_CONFIG = {
   PLANTADO: { cor: "#4CAF7D", icone: "activity" },
   PREPARACAO: { cor: "#C8A96E", icone: "tool" },
@@ -30,26 +57,41 @@ export default function Plantacao() {
   const { tema } = useTema();
   const s = estilos(tema);
 
-  const [plantacoes, SetPlantacoes] = useState([]);
-  const [modalVisivel, SetModalVisivel] = useState(false);
-  const [cultura, SetCultura] = useState("");
-  const [area, SetArea] = useState("");
-  const [dataPlantio, SetDataPlantio] = useState("");
-  const [talhao, SetTalhao] = useState("");
-  const [status, SetStatus] = useState("");
+  const [plantacoes, setPlantacoes] = useState([]);
+  const [loadingLista, setLoadingLista] = useState(true);
+  const [salvando, setSalvando] = useState(false);
 
-  const [modalColheitaVisivel, SetModalColheitaVisivel] = useState(false);
-  const [plantacaoSelecionada, SetPlantacaoSelecionada] = useState(null);
-  const [dataColheita, SetDataColheita] = useState("");
-  const [qtdColhida, SetQtdColhida] = useState("");
+  const [modalVisivel, setModalVisivel] = useState(false);
+  const [cultura, setCultura] = useState("");
+  const [area, setArea] = useState("");
+  const [dataPlantio, setDataPlantio] = useState("");
+  const [talhao, setTalhao] = useState("");
+  const [status, setStatus] = useState("");
+
+  const [modalColheitaVisivel, setModalColheitaVisivel] = useState(false);
+  const [plantacaoSelecionada, setPlantacaoSelecionada] = useState(null);
+  const [dataColheita, setDataColheita] = useState("");
+  const [qtdColhida, setQtdColhida] = useState("");
 
   useEffect(() => {
     carregarPlantacoes();
   }, []);
 
   async function carregarPlantacoes() {
-    const dados = await AsyncStorage.getItem("PLANTACOES");
-    if (dados) SetPlantacoes(JSON.parse(dados));
+    setLoadingLista(true);
+    try {
+      const rawUsuario = await AsyncStorage.getItem("usuarioLogado");
+      if (!rawUsuario) return;
+      const usuario = JSON.parse(rawUsuario);
+      const response = await fetchComToken(
+        `/api/plantacoes/usuario/${usuario.id}`,
+      );
+      if (response.ok) setPlantacoes(await response.json());
+    } catch {
+      Alert.alert("Erro", "Não foi possível carregar as plantações.");
+    } finally {
+      setLoadingLista(false);
+    }
   }
 
   async function salvarPlantacao() {
@@ -57,23 +99,53 @@ export default function Plantacao() {
       Alert.alert("Erro", "Preencha todos os campos");
       return;
     }
-    const nova = {
-      id: Date.now().toString(),
-      cultura,
-      area,
-      dataPlantio,
-      talhao,
-      status,
-    };
-    const novaLista = [...plantacoes, nova];
-    SetPlantacoes(novaLista);
-    await AsyncStorage.setItem("PLANTACOES", JSON.stringify(novaLista));
-    SetCultura("");
-    SetArea("");
-    SetDataPlantio("");
-    SetTalhao("");
-    SetStatus("");
-    SetModalVisivel(false);
+    const dataFormatada = formatarDataParaAPI(dataPlantio);
+    if (!dataFormatada) {
+      Alert.alert("Erro", "Data inválida. Use o formato DD/MM/AAAA.");
+      return;
+    }
+    if (talhao.length > 20) {
+      Alert.alert("Erro", "Local deve ter no máximo 20 caracteres.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      const usuario = JSON.parse(await AsyncStorage.getItem("usuarioLogado"));
+      const response = await fetchComToken("/api/plantacoes", {
+        method: "POST",
+        body: JSON.stringify({
+          usuarioId: usuario.id,
+          tipoPlantio: cultura.trim(),
+          areaPlantio: Number(area),
+          dataPlantio: dataFormatada,
+          localPlantio: talhao.trim(),
+          status,
+        }),
+      });
+      if (response.status === 201) {
+        setCultura("");
+        setArea("");
+        setDataPlantio("");
+        setTalhao("");
+        setStatus("");
+        setModalVisivel(false);
+        await carregarPlantacoes();
+        Alert.alert("Sucesso", "Plantação cadastrada com sucesso!");
+        return;
+      }
+      const data = await response.json().catch(() => null);
+      Alert.alert(
+        "Erro",
+        data?.message || "Não foi possível salvar a plantação.",
+      );
+    } catch {
+      Alert.alert(
+        "Erro de conexão",
+        "Verifique sua internet e tente novamente.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function excluirPlantacao(id) {
@@ -83,19 +155,35 @@ export default function Plantacao() {
         text: "Excluir",
         style: "destructive",
         onPress: async () => {
-          const novaLista = plantacoes.filter((p) => p.id !== id);
-          SetPlantacoes(novaLista);
-          await AsyncStorage.setItem("PLANTACOES", JSON.stringify(novaLista));
+          try {
+            const response = await fetchComToken(`/api/plantacoes/${id}`, {
+              method: "DELETE",
+            });
+            if (response.status === 204) {
+              setPlantacoes((prev) => prev.filter((p) => p.id !== id));
+            } else {
+              Alert.alert("Erro", "Não foi possível excluir a plantação.");
+            }
+          } catch {
+            Alert.alert("Erro de conexão", "Verifique sua internet.");
+          }
         },
       },
     ]);
   }
 
   function abrirModalColheita(item) {
-    SetPlantacaoSelecionada(item);
-    SetDataColheita("");
-    SetQtdColhida("");
-    SetModalColheitaVisivel(true);
+    if (item.status !== "PLANTADO") {
+      Alert.alert(
+        "Ação indisponível",
+        "Só é possível registrar colheita em plantações com status PLANTADO.",
+      );
+      return;
+    }
+    setPlantacaoSelecionada(item);
+    setDataColheita("");
+    setQtdColhida("");
+    setModalColheitaVisivel(true);
   }
 
   async function salvarColheita() {
@@ -103,49 +191,67 @@ export default function Plantacao() {
       Alert.alert("Erro", "Preencha todos os campos da colheita");
       return;
     }
-    const novaColheita = {
-      id: Date.now().toString(),
-      plantacaoId: plantacaoSelecionada.id,
-      cultura: plantacaoSelecionada.cultura,
-      talhao: plantacaoSelecionada.talhao,
-      dataColheita,
-      qtdColhida,
-    };
-    const dadosColheitas = await AsyncStorage.getItem("COLHEITAS");
-    const colheitas = dadosColheitas ? JSON.parse(dadosColheitas) : [];
-    await AsyncStorage.setItem(
-      "COLHEITAS",
-      JSON.stringify([...colheitas, novaColheita]),
-    );
-    SetModalColheitaVisivel(false);
-    SetPlantacaoSelecionada(null);
-    Alert.alert(
-      "Sucesso",
-      `Colheita de ${novaColheita.cultura} registrada com ${qtdColhida} toneladas!`,
-    );
+    const dataFormatada = formatarDataParaAPI(dataColheita);
+    if (!dataFormatada) {
+      Alert.alert("Erro", "Data inválida. Use o formato DD/MM/AAAA.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      const response = await fetchComToken("/api/safras", {
+        method: "POST",
+        body: JSON.stringify({
+          plantacaoId: plantacaoSelecionada.id,
+          dataColheita: dataFormatada,
+          qtdColhida: parseFloat(qtdColhida),
+        }),
+      });
+      if (response.status === 201) {
+        await fetchComToken(`/api/plantacoes/${plantacaoSelecionada.id}`, {
+          method: "DELETE",
+        });
+        setModalColheitaVisivel(false);
+        setPlantacaoSelecionada(null);
+        await carregarPlantacoes();
+        Alert.alert(
+          "Colheita registrada!",
+          `${plantacaoSelecionada.tipoPlantio} colhida com ${qtdColhida} toneladas e removida da lista.`,
+        );
+        return;
+      }
+      const data = await response.json().catch(() => null);
+      Alert.alert(
+        "Erro",
+        data?.message || "Não foi possível registrar a colheita.",
+      );
+    } catch {
+      Alert.alert(
+        "Erro de conexão",
+        "Verifique sua internet e tente novamente.",
+      );
+    } finally {
+      setSalvando(false);
+    }
   }
 
   function renderPlantacao({ item }) {
-    const partes = item.dataPlantio.split("/");
-    const dia = partes[0] || "--";
-    const mes = partes[1] || "--";
+    const [, mes, dia] = item.dataPlantio?.split("-") || [];
     const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.PLANTADO;
-
     return (
       <View style={s.card}>
         <View style={s.cardData}>
-          <Text style={s.cardDia}>{dia}</Text>
-          <Text style={s.cardMes}>/{mes}</Text>
+          <Text style={s.cardDia}>{dia || "--"}</Text>
+          <Text style={s.cardMes}>/{mes || "--"}</Text>
         </View>
         <View style={s.cardInfo}>
-          <Text style={s.cardNome}>{item.cultura}</Text>
+          <Text style={s.cardNome}>{item.tipoPlantio}</Text>
           <View style={s.cardLinha}>
             <Feather name="map-pin" size={12} color="#C8A96E" />
-            <Text style={s.cardDetalhe}> {item.talhao}</Text>
+            <Text style={s.cardDetalhe}> {item.localPlantio}</Text>
           </View>
           <View style={s.cardLinha}>
             <Feather name="maximize" size={12} color={tema.textoSecundario} />
-            <Text style={s.cardDetalhe}> {item.area} ha</Text>
+            <Text style={s.cardDetalhe}> {item.areaPlantio} ha</Text>
           </View>
           <View style={s.cardLinha}>
             <Feather name={config.icone} size={12} color={config.cor} />
@@ -177,13 +283,16 @@ export default function Plantacao() {
   return (
     <View style={s.container}>
       <StatusBar barStyle={tema.statusBar} backgroundColor={tema.statusBarBg} />
-
       <View style={s.header}>
         <View style={s.dividerTop} />
         <Text style={s.titulo}>PLANTAÇÃO</Text>
       </View>
 
-      {plantacoes.length === 0 ? (
+      {loadingLista ? (
+        <View style={s.vazio}>
+          <ActivityIndicator size="large" color={tema.acento} />
+        </View>
+      ) : plantacoes.length === 0 ? (
         <View style={s.vazio}>
           <Feather name="sun" size={56} color={tema.vazioIcone} />
           <Text style={s.vazioTexto}>Nenhuma plantação cadastrada</Text>
@@ -192,7 +301,7 @@ export default function Plantacao() {
       ) : (
         <FlatList
           data={plantacoes}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderPlantacao}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
@@ -201,7 +310,7 @@ export default function Plantacao() {
 
       <TouchableOpacity
         style={[s.botaoAdicionar, { marginBottom: 64 + insets.bottom + 16 }]}
-        onPress={() => SetModalVisivel(true)}
+        onPress={() => setModalVisivel(true)}
         activeOpacity={0.85}
       >
         <MaterialIcons name="add" size={20} color={tema.acentoTexto} />
@@ -213,7 +322,7 @@ export default function Plantacao() {
           <View style={s.modalContainer}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitulo}>NOVA PLANTAÇÃO</Text>
-              <TouchableOpacity onPress={() => SetModalVisivel(false)}>
+              <TouchableOpacity onPress={() => setModalVisivel(false)}>
                 <MaterialIcons
                   name="close"
                   size={24}
@@ -225,7 +334,7 @@ export default function Plantacao() {
               <Text style={s.label}>PLANTIO</Text>
               <TextInput
                 value={cultura}
-                onChangeText={SetCultura}
+                onChangeText={setCultura}
                 style={s.input}
                 placeholder="Ex: Soja, Milho, Cana..."
                 placeholderTextColor={tema.textoPlaceholder}
@@ -233,9 +342,9 @@ export default function Plantacao() {
               <Text style={s.label}>ÁREA (hectares)</Text>
               <TextInput
                 value={area}
-                onChangeText={SetArea}
+                onChangeText={setArea}
                 style={s.input}
-                placeholder="Ex: 12.5"
+                placeholder="Ex: 12"
                 placeholderTextColor={tema.textoPlaceholder}
                 keyboardType="numeric"
               />
@@ -243,13 +352,13 @@ export default function Plantacao() {
               <MaskedTextInput
                 mask="99/99/9999"
                 value={dataPlantio}
-                onChangeText={(text) => SetDataPlantio(text)}
+                onChangeText={setDataPlantio}
                 style={s.input}
                 keyboardType="numeric"
                 placeholder="DD/MM/AAAA"
                 placeholderTextColor={tema.textoPlaceholder}
               />
-              <Text style={s.label}>LOCAL</Text>
+              <Text style={s.label}>LOCAL (máx. 20 caracteres)</Text>
               <View style={s.localContainer}>
                 <Feather
                   name="map-pin"
@@ -259,10 +368,11 @@ export default function Plantacao() {
                 />
                 <TextInput
                   value={talhao}
-                  onChangeText={SetTalhao}
+                  onChangeText={setTalhao}
                   style={s.localInput}
-                  placeholder="Ex: Talhão A, Área Norte..."
+                  placeholder="Ex: Setor A"
                   placeholderTextColor={tema.textoPlaceholder}
+                  maxLength={20}
                 />
               </View>
               <Text style={s.label}>STATUS</Text>
@@ -273,6 +383,8 @@ export default function Plantacao() {
                   return (
                     <TouchableOpacity
                       key={opcao}
+                      onPress={() => setStatus(opcao)}
+                      activeOpacity={0.75}
                       style={[
                         s.statusBotao,
                         selecionado && {
@@ -280,8 +392,6 @@ export default function Plantacao() {
                           backgroundColor: config.cor + "18",
                         },
                       ]}
-                      onPress={() => SetStatus(opcao)}
-                      activeOpacity={0.75}
                     >
                       <Feather
                         name={config.icone}
@@ -303,15 +413,21 @@ export default function Plantacao() {
               <View style={s.modalBotoes}>
                 <TouchableOpacity
                   style={s.botaoCancelar}
-                  onPress={() => SetModalVisivel(false)}
+                  onPress={() => setModalVisivel(false)}
+                  disabled={salvando}
                 >
                   <Text style={s.botaoCancelarTexto}>CANCELAR</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.botaoSalvar}
                   onPress={salvarPlantacao}
+                  disabled={salvando}
                 >
-                  <Text style={s.botaoSalvarTexto}>SALVAR</Text>
+                  {salvando ? (
+                    <ActivityIndicator color="#1A1A1A" size="small" />
+                  ) : (
+                    <Text style={s.botaoSalvarTexto}>SALVAR</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -327,12 +443,12 @@ export default function Plantacao() {
                 <Text style={s.modalTitulo}>REGISTRAR COLHEITA</Text>
                 {plantacaoSelecionada && (
                   <Text style={s.modalSubtitulo}>
-                    {plantacaoSelecionada.cultura} ·{" "}
-                    {plantacaoSelecionada.talhao}
+                    {plantacaoSelecionada.tipoPlantio} ·{" "}
+                    {plantacaoSelecionada.localPlantio}
                   </Text>
                 )}
               </View>
-              <TouchableOpacity onPress={() => SetModalColheitaVisivel(false)}>
+              <TouchableOpacity onPress={() => setModalColheitaVisivel(false)}>
                 <MaterialIcons
                   name="close"
                   size={24}
@@ -345,7 +461,7 @@ export default function Plantacao() {
               <MaskedTextInput
                 mask="99/99/9999"
                 value={dataColheita}
-                onChangeText={(text) => SetDataColheita(text)}
+                onChangeText={setDataColheita}
                 style={s.input}
                 keyboardType="numeric"
                 placeholder="DD/MM/AAAA"
@@ -361,7 +477,7 @@ export default function Plantacao() {
                 />
                 <TextInput
                   value={qtdColhida}
-                  onChangeText={SetQtdColhida}
+                  onChangeText={setQtdColhida}
                   style={s.localInput}
                   placeholder="Ex: 45.80"
                   placeholderTextColor={tema.textoPlaceholder}
@@ -371,16 +487,24 @@ export default function Plantacao() {
               <View style={s.modalBotoes}>
                 <TouchableOpacity
                   style={s.botaoCancelar}
-                  onPress={() => SetModalColheitaVisivel(false)}
+                  onPress={() => setModalColheitaVisivel(false)}
+                  disabled={salvando}
                 >
                   <Text style={s.botaoCancelarTexto}>CANCELAR</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.botaoColherModal}
                   onPress={salvarColheita}
+                  disabled={salvando}
                 >
-                  <MaterialIcons name="grass" size={16} color="#1A1A1A" />
-                  <Text style={s.botaoSalvarTexto}>COLHER</Text>
+                  {salvando ? (
+                    <ActivityIndicator color="#1A1A1A" size="small" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="grass" size={16} color="#1A1A1A" />
+                      <Text style={s.botaoSalvarTexto}>COLHER</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
