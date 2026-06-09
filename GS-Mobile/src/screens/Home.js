@@ -1,14 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  RefreshControl,
-  Alert,
-  FlatList,
+import {View,Text,ScrollView,TouchableOpacity,StyleSheet,StatusBar,RefreshControl,Alert,FlatList,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
