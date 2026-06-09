@@ -23,7 +23,6 @@
 ## 👥 Equipe
 
 | Nome | RM |
-|:---|:---:|
 | João Victor Caetano Alves da Silva | RM 562074 |
 | João Victor Bueno Castelini da Silva | RM 564115 |
 | Ryan Vetoriano | RM 565667 |
