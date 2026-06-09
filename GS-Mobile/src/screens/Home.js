@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -31,6 +31,12 @@ async function fetchComToken(path, options = {}) {
   });
 }
 
+const STATUS_CONFIG = {
+  PLANTADO: { cor: "#4CAF7D", icone: "activity" },
+  PREPARACAO: { cor: "#C8A96E", icone: "tool" },
+  DESCANSO: { cor: "#7B8FA1", icone: "moon" },
+};
+
 export default function Home({ navigation }) {
   const { tema } = useTema();
   const s = estilos(tema);
@@ -47,34 +53,23 @@ export default function Home({ navigation }) {
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
       }
-
       const usuarioSalvo = JSON.parse(rawUsuario);
       setUsuario(usuarioSalvo);
-      console.log("usuarioSalvo:", JSON.stringify(usuarioSalvo));
-      console.log("buscando plantações de id:", usuarioSalvo.id);
 
       const response = await fetchComToken(
         `/api/plantacoes/usuario/${usuarioSalvo.id}`,
       );
-
       if (response.status === 401 || response.status === 403) {
         await AsyncStorage.multiRemove(["token", "usuarioLogado"]);
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
       }
-
       if (response.ok) {
-        const data = await response.json();
-        console.log("plantações recebidas:", JSON.stringify(data));
-        setPlantacoes(data);
+        setPlantacoes(await response.json());
       } else {
-        console.log("erro ao buscar plantações, status:", response.status);
-        const erro = await response.json().catch(() => null);
-        console.log("erro body:", JSON.stringify(erro));
         setPlantacoes([]);
       }
-    } catch (error) {
-      console.error("Erro ao carregar:", error);
+    } catch {
       Alert.alert("Erro", "Não foi possível carregar os dados.");
     } finally {
       setLoading(false);
@@ -103,23 +98,14 @@ export default function Home({ navigation }) {
     ]);
   }
 
-  const STATUS_CONFIG = {
-    PLANTADO: { cor: "#4CAF7D", icone: "activity" },
-    PREPARACAO: { cor: "#C8A96E", icone: "tool" },
-    DESCANSO: { cor: "#7B8FA1", icone: "moon" },
-  };
-
   function renderPlantacao({ item }) {
-    const partes = item.dataPlantio?.split("-") || [];
-    const dia = partes[2] || "--";
-    const mes = partes[1] || "--";
+    const [, mes, dia] = item.dataPlantio?.split("-") || [];
     const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.PLANTADO;
-
     return (
       <View style={s.plantacaoCard}>
         <View style={s.plantacaoData}>
-          <Text style={s.plantacaoDia}>{dia}</Text>
-          <Text style={s.plantacaoMes}>/{mes}</Text>
+          <Text style={s.plantacaoDia}>{dia || "--"}</Text>
+          <Text style={s.plantacaoMes}>/{mes || "--"}</Text>
         </View>
         <View style={s.plantacaoInfo}>
           <Text style={s.plantacaoNome}>{item.tipoPlantio}</Text>
@@ -168,11 +154,11 @@ export default function Home({ navigation }) {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
+              tintColor={tema.acento}
               onRefresh={() => {
                 setRefreshing(true);
                 carregar();
               }}
-              tintColor={tema.acento}
             />
           }
         >
@@ -184,11 +170,9 @@ export default function Home({ navigation }) {
                   <Text style={s.cardDono}>👤 {usuario.nome}</Text>
                 </View>
               </View>
-
               <Text style={s.secaoLabel}>
                 TALHÕES {plantacoes.length > 0 ? `(${plantacoes.length})` : ""}
               </Text>
-
               {plantacoes.length === 0 ? (
                 <View style={s.talhaoVazio}>
                   <Text style={s.talhaoVazioTexto}>
